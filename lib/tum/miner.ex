@@ -1,38 +1,47 @@
 defmodule Tum.Miner do
   use GenServer
 
-  alias Tum.{Block, Vault}
+  alias Tum.{ProofOfWork, Block, Vault}
 
-  def init(message, difficulty, block, vault) do
-    {:ok, %{message: message, difficulty: difficulty, block: block, vault: vault}}
+  def start_link(args) do
+    GenServer.start_link(__MODULE__, args)
   end
 
-  def new_block(pid, nounce) do
-    pid |> GenServer.call({:new_block, nounce})
-  end
-
-  def handle_call({:new_block, nounce}, _from, state) do
+  def init(%{previous_block: previous_block, difficulty: difficulty, message: message, vault: vault }) do
     block = %Block{
-      height: state.block.height + 1,
+      height: previous_block.height + 1,
+      previous_hash: previous_block.hash,
+      difficulty: difficulty,
       hash: "",
-      previous_hash: state.block.hash,
-      difficulty: state.difficulty,
-      message: state.message,
-      nounce: nounce,
-      public_key: Vault.public_key(state.vault),
-      signature: ""
+      public_key: Vault.public_key(vault),
+      signature: "",
+      message: message,
+      nounce: 0
     }
-    hash = ProofOfWork.hash(block);
-    signature = Vault.sign(hash);
-    %{block | hash: hash, signature: signature}
+    {:ok, %{previous_block: previous_block, difficulty: difficulty, block: block, vault: vault}}
   end
 
-  def miner(pid) do
-    pid |> GenServer.call(:miner)
+  def find(pid) do
+    pid |> GenServer.call(:miner, :infinity)
   end
 
-  def handle_call(:miner, _from, state) do
-    
+  def find_valid_block(block, previous_block, difficulty, vault) do
+    hash = ProofOfWork.hash(block)
+    signature = Vault.sign(vault, hash)
+    new_block = %{block | hash: hash, signature: signature}
+    ProofOfWork.is_valid?(new_block, previous_block, difficulty)
+    |> case do
+         {:ok, block} ->
+           {:ok, block}
+         {:error, _errors} ->
+           find_valid_block(%{block | nounce: block.nounce+1}, previous_block, difficulty, vault)
+    end
   end
+
+  def handle_call(:miner, _from, %{block: old_block, vault: vault, difficulty: difficulty, previous_block: previous_block} = state) do
+    {:ok, block} = find_valid_block(old_block, previous_block, difficulty, vault)
+    {:reply, {:ok, block}, %{state | block: block}}
+  end
+
 end
 

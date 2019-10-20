@@ -1,10 +1,78 @@
 defmodule Tum.ProofOfWork do
 
+  alias Tum.{Vault, Block}
+
   def hash(block) do
+    "#{block.height}#{block.previous_hash}#{block.difficulty}#{block.message}#{block.nounce}"
+    |> Vault.hash()
   end
 
-  def is_valid?(block) do
+  def is_valid?([block | tail], difficulty) do
+    last_block = tail
+    |> case do
+         [last_block | _] -> last_block
+         [] -> %Block{hash: "", height: 0}
+       end
+    is_valid?(block, last_block, difficulty)
+    |> case do
+         {:ok, _block} -> is_valid?(tail, difficulty)
+         {:error, errors} -> {:error, %{block: block, errors: errors}}
+    end
   end
+  def is_valid?([], _difficulty), do: :ok
+
+  def is_valid?(block, last_block, difficulty) do
+    []
+    |> validate_hash(block)
+    |> validate_previous_block(block, last_block)
+    |> validate_difficulty(block, difficulty)
+    |> validate_sign(block)
+    |> case do
+         [] -> {:ok, block}
+         errors -> {:error, errors}
+       end
+  end
+
+  defp validate_hash(errors, block) do
+    if(hash(block) != block.hash) do
+      errors ++ [:block_hash_invalid]
+    else
+      errors
+    end
+  end
+
+  defp validate_previous_block(errors, %{previous_hash: previous_hash}, %{hash: hash}) do
+    if(hash != previous_hash) do
+      errors ++ [:previous_hash_invalid]
+    else
+      errors
+    end
+  end
+
+  defp validate_difficulty(errors, block, difficulty) do
+    current_difficulty = calculate_0_prefix(block.hash)
+    if(difficulty > current_difficulty) do
+      errors ++ [:block_difficulty_invalid]
+    else
+      errors
+    end
+  end
+
+  defp validate_sign(errors, block) do
+    if(Vault.is_valid?(block.hash, block.signature, block.public_key)) do
+      errors
+    else
+      errors ++ [:block_sign_invalid]
+    end
+  end
+
+  def calculate_0_prefix(hash) when is_bitstring(hash) do
+    hash
+    |> String.split("", trim: true)
+    |> calculate_0_prefix(0)
+  end
+  def calculate_0_prefix(["0" | tail], acc), do: calculate_0_prefix(tail, acc + 1)
+  def calculate_0_prefix(_notInit0, acc), do: acc
 
 end
 
