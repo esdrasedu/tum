@@ -13,7 +13,13 @@ defmodule Tum do
 
   def start_link([]) do
     [genesis: genesis, difficulty: difficulty] = Application.get_env(:tum, Tum)
-    vault_args = Application.get_env(:tum, Vault)
+    [private_key: private_key] = Application.get_env(:tum, Vault)
+    vault_args = private_key
+    |> case do
+         private_key when is_bitstring(private_key) ->
+           [private_key: private_key |> Base.decode16!()]
+         nil -> [private_key: :undefined]
+       end
     {:ok, vault} = GenServer.start_link(Vault, vault_args);
 
     blocks = Network.search_blocks()
@@ -22,7 +28,7 @@ defmodule Tum do
          all -> all
        end
 
-    # :ok = ProofOfWork.is_valid?(blocks, difficulty)
+    :ok = ProofOfWork.is_valid?(blocks, difficulty)
 
     GenServer.start_link(__MODULE__, %Tum{blocks: blocks, vault: vault, difficulty: difficulty}, name: Tum)
   end
@@ -45,7 +51,6 @@ defmodule Tum do
     {:ok, new_block} = GenServer.whereis(Tum)
     |> GenServer.call({:miner, message}, :infinity)
     :ok = Network.broadcast(new_block)
-    {:ok, _block} = new_block(new_block)
   end
 
   def new_block(%Block{} = block) do

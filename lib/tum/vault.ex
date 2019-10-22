@@ -28,12 +28,14 @@ defmodule Tum.Vault do
     :crypto.verify(@signature_algorithm, @hash_algorithm, string, signature_binary, [public_key_binary, @pair_algorithm_curve])
   end
 
-  def public_key(pid) do
-    pid |> GenServer.call(:public_key)
-  end
+  def public_key(pid), do: pid |> GenServer.call(:public_key)
+  def private_key(pid), do: pid |> GenServer.call(:private_key)
 
   def handle_call(:public_key, _from, %{public_key: public_key} = state),
     do: {:reply, public_key |> Base.encode16(), state}
+
+  def handle_call(:private_key, _from, %{private_key: private_key} = state),
+    do: {:reply, private_key |> Base.encode16(), state}
 
   def handle_call({:sign, message}, _from, %{private_key: private_key} = state) do
     signature = :crypto.sign(@signature_algorithm, @hash_algorithm, message, [private_key, @pair_algorithm_curve])

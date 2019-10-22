@@ -4,11 +4,74 @@ defmodule Tum.Network do
   alias Tum.Block
 
   def start_link([]) do
-    GenServer.start_link(__MODULE__, :todo)
+    :ok = Mdns.Server.start()
+    :ok = Mdns.Client.start()
+    GenServer.start_link(__MODULE__, :ok, name: __MODULE__)
   end
 
-  def init(state) do
-    {:ok, state}
+  def init(:ok) do
+    :ok = my_ip()
+    |> Mdns.Server.set_ip()
+
+    host = hostname()
+
+    services = [
+      # create domain for an ip
+      %Mdns.Server.Service{domain: "#{host}.local", data: :ip, ttl: 120, type: :a},
+
+      # make service discoverable
+      %Mdns.Server.Service{domain: "_services._dns-sd._udp.local", data: "_tum._tcp.local", ttl: 120, type: :ptr},
+
+      # register service to type
+      %Mdns.Server.Service{domain: "_tum._tcp.local", data: "#{host}._tum._tcp.local", ttl: 120, type: :ptr},
+
+      # point service to our domain
+      %Mdns.Server.Service{domain: "#{host}._tum._tcp.local",  data: {0, 0, 4369, '#{host}.local'}, ttl: 120, type: :srv},
+
+      # empty txt service
+      %Mdns.Server.Service{domain: "#{host}._tum._tcp.local", data: [], ttl: 120, type: :txt}
+    ]
+
+    :ok = services |> Enum.each(&Mdns.Server.add_service/1)
+
+    Mdns.EventManager.register()
+    Mdns.Client.query("_tum._tcp.local")
+
+    {:ok, services}
+  end
+
+  def handle_info({:"_tum._tcp.local", %{ip: ip}}, state) do
+    get_nodes(ip)
+    {:noreply, state}
+  end
+  def handle_info(_msg, state), do: {:noreply, state}
+
+  def get_nodes(ip) do
+    host = ip
+    |> Tuple.to_list()
+    |> Enum.join(".")
+    |> String.to_atom()
+    [host]
+    |> :net_adm.world_list()
+    |> connect_node()
+  end
+
+  defp connect_node([node | tail]) do
+    node
+    |> Node.connect()
+    connect_node(tail)
+  end
+  defp connect_node([]), do: :ok
+
+  defp my_ip() do
+    {:ok, [{ip, _mask, _submask} | _tail]} = :inet.getif()
+    ip
+  end
+
+  defp hostname() do
+    :erlang.node()
+    |> to_string()
+    |> String.replace("@", "-")
   end
 
   def search_blocks() do
@@ -17,7 +80,8 @@ defmodule Tum.Network do
   end
 
   def broadcast(%Block{} = block) do
-    # TODO
+    :rpc.multicall(Tum, :new_block, [block], :infinity)
     :ok
   end
+
 end
