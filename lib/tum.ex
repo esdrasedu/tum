@@ -1,6 +1,8 @@
 defmodule Tum do
   use GenServer
 
+  require Logger
+
   alias Tum.{Vault, Block, Network, ProofOfWork, Miner}
 
   defstruct [:blocks, :vault, :difficulty]
@@ -22,16 +24,25 @@ defmodule Tum do
        end
     {:ok, vault} = GenServer.start_link(Vault, vault_args);
 
-    blocks = Network.search_blocks()
-    |> case do
-         [] -> [genesis]
-         all -> all
-       end
-
-    :ok = ProofOfWork.is_valid?(blocks, difficulty)
+    {:ok, blocks} = Network.search_blocks()
+    |> select_chain([], genesis, difficulty)
 
     GenServer.start_link(__MODULE__, %Tum{blocks: blocks, vault: vault, difficulty: difficulty}, name: Tum)
   end
+
+  def select_chain([chain | chains], current_chain, genesis, difficulty) do
+    with true <- is_list(chain),
+         [network_genesis | _tail] <- chain,
+           true <- network_genesis == genesis,
+           true <- length(current_chain) < length(chain),
+         {:ok, blocks} <- ProofOfWork.is_valid?(chain, difficulty) do
+      select_chain(chains, blocks, genesis, difficulty)
+    else
+      _error -> select_chain(chains, current_chain, genesis, difficulty)
+    end
+  end
+  def select_chain([], [], genesis, _difficulty), do: {:ok, [genesis]}
+  def select_chain([], current_chain, _genesis, _difficulty), do: {:ok, current_chain}
 
   def init(state) do
     {:ok, state}
@@ -45,6 +56,11 @@ defmodule Tum do
   def last_block() do
     GenServer.whereis(Tum)
     |> GenServer.call(:last_block)
+  end
+
+  def blocks() do
+    GenServer.whereis(Tum)
+    |> GenServer.call(:blocks)
   end
 
   def miner(message \\ "") do
@@ -62,7 +78,12 @@ defmodule Tum do
     {:reply, blocks |> List.last(), state}
   end
 
+  def handle_call(:blocks, _from, %{blocks: blocks} = state) do
+    {:reply, blocks, state}
+  end
+
   def handle_call({:new_block, block}, _from, %{blocks: blocks, difficulty: difficulty} = state) do
+    Logger.info("New block: #{block.height} -> #{block.hash}")
     last_block = blocks |> List.last()
     block
     |> ProofOfWork.is_valid?(last_block, difficulty)

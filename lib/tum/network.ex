@@ -46,11 +46,15 @@ defmodule Tum.Network do
   end
   def handle_info(_msg, state), do: {:noreply, state}
 
-  def get_nodes(ip) do
-    host = ip
+  def get_nodes(ip) when is_tuple(ip) do
+    ip
     |> Tuple.to_list()
     |> Enum.join(".")
     |> String.to_atom()
+    |> get_nodes()
+  end
+
+  def get_nodes(host) when is_atom(host) do
     [host]
     |> :net_adm.world_list()
     |> connect_node()
@@ -75,8 +79,8 @@ defmodule Tum.Network do
   end
 
   def search_blocks() do
-    # TODO
-    []
+    {response, _error} = :rpc.multicall(Tum, :blocks, [], :infinity)
+    response
   end
 
   def broadcast(%Block{} = block) do

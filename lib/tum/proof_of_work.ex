@@ -7,7 +7,14 @@ defmodule Tum.ProofOfWork do
     |> Vault.hash()
   end
 
-  def is_valid?([block | tail], difficulty) do
+  def is_valid?(chain, difficulty) do
+    chain
+    |> Enum.reverse()
+    |> check_recursive(difficulty)
+  end
+
+  def check_recursive(blocks, difficulty), do: check_recursive(blocks, difficulty, blocks)
+  def check_recursive([block | tail], difficulty, blocks) do
     last_block = tail
     |> case do
          [last_block | _] -> last_block
@@ -15,11 +22,11 @@ defmodule Tum.ProofOfWork do
        end
     is_valid?(block, last_block, difficulty)
     |> case do
-         {:ok, _block} -> is_valid?(tail, difficulty)
+         {:ok, _block} -> check_recursive(tail, difficulty, blocks)
          {:error, errors} -> {:error, %{block: block, errors: errors}}
     end
   end
-  def is_valid?([], _difficulty), do: :ok
+  def check_recursive([], _difficulty, blocks), do: {:ok, blocks |> Enum.reverse()}
 
   def is_valid?(block, last_block, difficulty) do
     []
