@@ -10,8 +10,9 @@ defmodule Tum.Application do
   def start(_type, _args) do
     import Supervisor.Spec, warn: false
 
+    [mdns: mdns] = Application.get_env(:tum, Network)
     children = [
-      Network,
+      {Network, [mdns: mdns]},
       Tum
     ]
 

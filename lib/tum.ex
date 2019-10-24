@@ -15,14 +15,9 @@ defmodule Tum do
 
   def start_link([]) do
     [genesis: genesis, difficulty: difficulty] = Application.get_env(:tum, Tum)
+
     [private_key: private_key] = Application.get_env(:tum, Vault)
-    vault_args = private_key
-    |> case do
-         private_key when is_bitstring(private_key) ->
-           [private_key: private_key |> Base.decode16!()]
-         nil -> [private_key: :undefined]
-       end
-    {:ok, vault} = GenServer.start_link(Vault, vault_args);
+    {:ok, vault} = GenServer.start_link(Vault, [private_key: private_key]);
 
     {:ok, blocks} = Network.search_blocks()
     |> select_chain([], genesis, difficulty)
@@ -63,7 +58,7 @@ defmodule Tum do
     |> GenServer.call(:blocks)
   end
 
-  def miner(message \\ "") do
+  def mine(message \\ "") do
     {:ok, new_block} = GenServer.whereis(Tum)
     |> GenServer.call({:miner, message}, :infinity)
     :ok = Network.broadcast(new_block)
@@ -91,6 +86,7 @@ defmodule Tum do
          {:ok, block} ->
            {:reply, {:ok, block}, %{state | blocks: blocks ++ [block]}}
          {:error, errors} ->
+           Logger.info("Block is invalid: #{block.hash}")
            {:reply, {:error, errors}, state}
        end
   end

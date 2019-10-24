@@ -23,3 +23,6 @@ config :tum, Tum,
 
 config :tum, Tum.Vault,
   [private_key: System.get_env("TUM_PRIVATE_KEY")]
+
+config :tum, Tum.Network,
+  [mdns: false]

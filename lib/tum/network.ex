@@ -3,13 +3,15 @@ defmodule Tum.Network do
 
   alias Tum.Block
 
-  def start_link([]) do
-    :ok = Mdns.Server.start()
-    :ok = Mdns.Client.start()
-    GenServer.start_link(__MODULE__, :ok, name: __MODULE__)
+  def start_link([mdns: mdns]) do
+    if(mdns) do
+      :ok = Mdns.Server.start()
+      :ok = Mdns.Client.start()
+    end
+    GenServer.start_link(__MODULE__, [mdns: mdns], name: __MODULE__)
   end
 
-  def init(:ok) do
+  def init([mdns: mdns]) do
     :ok = my_ip()
     |> Mdns.Server.set_ip()
 
@@ -32,10 +34,12 @@ defmodule Tum.Network do
       %Mdns.Server.Service{domain: "#{host}._tum._tcp.local", data: [], ttl: 120, type: :txt}
     ]
 
-    :ok = services |> Enum.each(&Mdns.Server.add_service/1)
+    if(mdns) do
+      :ok = services |> Enum.each(&Mdns.Server.add_service/1)
 
-    Mdns.EventManager.register()
-    Mdns.Client.query("_tum._tcp.local")
+      Mdns.EventManager.register()
+      Mdns.Client.query("_tum._tcp.local")
+    end
 
     {:ok, services}
   end

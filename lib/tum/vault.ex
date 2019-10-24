@@ -12,6 +12,12 @@ defmodule Tum.Vault do
   end
 
   def init([private_key: private_key]) do
+    {:ok, private_key} = private_key
+    |> case do
+         string when is_bitstring(string) ->
+           string |> Base.decode16()
+         _other -> {:ok, :undefined}
+       end
     {public_key, private_key} = :crypto.generate_key(@pair_algorithm, @pair_algorithm_curve, private_key)
     {:ok, %{private_key: private_key, public_key: public_key}}
   end
