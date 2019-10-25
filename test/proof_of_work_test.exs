@@ -136,7 +136,7 @@ defmodule Tum.ProofOfWorkTest do
       signature: "304402201900AEA45825C20D454CE3CFE0EA612ABE2D175CD20CE96CE33C9463985414D202203F6AEB6912A55ADCD95E3608B55E072F844662C916AC0220B4C29964AE221A00"
     }
     ]
-    assert ProofOfWork.is_valid?(blocks, 1)
+    {:ok, _blocks} = ProofOfWork.is_valid?(blocks, 1)
   end
 
   test "wrong sort chain" do
@@ -198,7 +198,7 @@ defmodule Tum.ProofOfWorkTest do
         signature: "30450220333046A3DB91327C84312E16B0ED1D5637BB4C14B43CFA7E95A2F1FC54B0339D022100F5AE8A7CADB2C480921323AB76F88466092CDC6E948C1BFA9E19D34B036AF5C3"
       }
     ]
-    assert ProofOfWork.is_valid?(blocks, 1)
+    {:ok, _blocks} = ProofOfWork.is_valid?(blocks, 1)
   end
 
 end
