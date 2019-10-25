@@ -19,6 +19,8 @@ defmodule Tum do
     [private_key: private_key] = Application.get_env(:tum, Vault)
     {:ok, vault} = GenServer.start_link(Vault, [private_key: private_key]);
 
+    Process.sleep(5_000) # Hack for MDNS
+
     {:ok, blocks} = Network.search_blocks()
     |> select_chain([], genesis, difficulty)
 
