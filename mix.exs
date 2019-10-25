@@ -21,6 +21,6 @@ defmodule Tum.MixProject do
 
   # Run "mix help deps" to learn about dependencies.
   defp deps do
-    [{:mdns, "~> 1.0.3"}]
+    [{:mdns, git: "https://github.com/esdrasedu/mdns.git"}]
   end
 end
