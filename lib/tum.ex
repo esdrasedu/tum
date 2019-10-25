@@ -86,7 +86,7 @@ defmodule Tum do
          {:ok, block} ->
            {:reply, {:ok, block}, %{state | blocks: blocks ++ [block]}}
          {:error, errors} ->
-           Logger.info("Block is invalid: #{block.hash}")
+           Logger.info("Block is invalid: #{block.hash}, error: #{inspect(errors)}")
            {:reply, {:error, errors}, state}
        end
   end

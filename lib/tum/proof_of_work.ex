@@ -18,7 +18,7 @@ defmodule Tum.ProofOfWork do
     last_block = tail
     |> case do
          [last_block | _] -> last_block
-         [] -> %Block{hash: "", height: 0}
+         [] -> ghost_block()
        end
     is_valid?(block, last_block, difficulty)
     |> case do
@@ -27,6 +27,8 @@ defmodule Tum.ProofOfWork do
     end
   end
   def check_recursive([], _difficulty, blocks), do: {:ok, blocks |> Enum.reverse()}
+
+  def ghost_block(), do: %Block{hash: "", height: 0}
 
   def is_valid?(block, last_block, difficulty) do
     []
@@ -78,6 +80,7 @@ defmodule Tum.ProofOfWork do
     |> String.split("", trim: true)
     |> calculate_0_prefix(0)
   end
+  def calculate_0_prefix(_other), do: 0
   def calculate_0_prefix(["0" | tail], acc), do: calculate_0_prefix(tail, acc + 1)
   def calculate_0_prefix(_notInit0, acc), do: acc
 
