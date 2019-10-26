@@ -34,7 +34,7 @@ defmodule Tum.Miner do
          {:ok, block} ->
            {:ok, block}
          {:error, _errors} ->
-           find_valid_block(%{block | nounce: block.nounce+1}, previous_block, difficulty, vault)
+           :TODO
     end
   end
 
